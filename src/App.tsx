@@ -417,16 +417,17 @@ function PublicFooter({ store, onNavigate }: { store: SalonStore; onNavigate: (r
     { name: 'Cerita klien', href: '/ulasan' }, { name: 'Jadwal booking', href: '/jadwal' }, { name: 'Lokasi', href: '/lokasi' },
   ]
   return <footer className="border-t border-slate-200 bg-slate-50 px-5 py-12 sm:px-8 lg:px-12">
-    <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(260px,300px)] lg:gap-7">
+    <div className="mx-auto grid max-w-7xl gap-8 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,2fr)] lg:gap-7">
       <div>
         <a href="/" onClick={(event) => { event.preventDefault(); onNavigate('/') }} className="inline-flex items-center"><img src={brandLogo} alt={store.profile.name} className="h-12 w-auto max-w-[220px] object-contain" /></a>
         <p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">Riasan penuh rasa, untuk hari-hari yang penuh makna. Mari siapkan momen terbaikmu bersama kami.</p>
         <a href={whatsappLink(store.profile.phone)} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600"><MessageCircle size={16} /> Hubungi via WhatsApp</a>
-        <p className="mt-2 text-xs text-slate-500">{store.profile.phone}</p>
       </div>
       <div><h3 className="mb-4 text-sm font-bold text-slate-900">Kunjungi studio</h3><p className="flex gap-2 text-sm leading-6 text-slate-600"><MapPin size={17} className="mt-0.5 shrink-0 text-rose-500" />{store.profile.address}</p><p className="mt-3 flex gap-2 text-sm text-slate-600"><Clock3 size={16} className="shrink-0 text-rose-500" />{store.profile.openingHours}</p></div>
-      <div><h3 className="mb-4 text-sm font-bold text-slate-900">Jelajahi</h3><div className="grid gap-2 text-sm text-slate-600">{links.map(({ name, href }) => <a key={href} href={href} onClick={(event) => { event.preventDefault(); onNavigate(href) }} className="hover:text-rose-600">{name}</a>)}</div></div>
-      <div><h3 className="mb-4 text-sm font-bold text-slate-900">Peta studio</h3><div className="aspect-square w-full max-w-[300px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><iframe title={`Peta lokasi ${store.profile.name}`} src={`https://www.google.com/maps?q=${encodeURIComponent(store.profile.address)}&output=embed`} className="h-full w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div></div>
+      <div className="grid gap-6 sm:grid-cols-[minmax(120px,0.55fr)_minmax(0,1.45fr)] sm:items-start">
+        <div><h3 className="mb-4 text-sm font-bold text-slate-900">Jelajahi</h3><div className="grid gap-2 text-sm text-slate-600">{links.map(({ name, href }) => <a key={href} href={href} onClick={(event) => { event.preventDefault(); onNavigate(href) }} className="hover:text-rose-600">{name}</a>)}</div></div>
+        <div><h3 className="mb-4 text-sm font-bold text-slate-900">Peta studio</h3><div className="h-[140px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100"><iframe title={`Peta lokasi ${store.profile.name}`} src={`https://www.google.com/maps?q=${encodeURIComponent(store.profile.address)}&output=embed`} className="h-full w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div></div>
+      </div>
     </div>
     <div className="mx-auto mt-10 flex max-w-7xl flex-col justify-between gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500 sm:flex-row"><span>© {new Date().getFullYear()} {store.profile.name}. Dibuat dengan sepenuh hati.</span><a href="https://www.instagram.com/desyana_77/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-rose-600"><Instagram size={14} /> @desyana_77</a></div>
   </footer>
