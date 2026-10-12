@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #0f172a;
+  background: #fffafa;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --rose: #f43f5e;
+  --ink: #0f172a;
+  --muted: #64748b;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { min-width: 320px; margin: 0; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+::selection { background: #ffe4e6; color: #9f1239; }
+
+.font-display { font-family: 'Playfair Display', Georgia, serif; }
+.hero-wash {
+  background-image: linear-gradient(90deg, rgba(255,250,250,.98) 0%, rgba(255,250,250,.9) 40%, rgba(255,250,250,.12) 100%), url('https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=2000&q=90');
+  background-position: center, center 42%;
+  background-size: cover;
+}
+.soft-pattern {
+  background-image: radial-gradient(#fda4af 0.7px, transparent 0.7px);
+  background-size: 15px 15px;
+}
+.reveal { animation: rise-in .65s ease both; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+.modal-backdrop { animation: fade-in .18s ease both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.focus-ring:focus-visible { outline: 3px solid #fda4af; outline-offset: 2px; }
+
+@layer components {
+  .field {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-rose-400 focus:ring-4 focus:ring-rose-100;
+  }
+  .label { @apply mb-1.5 block text-sm font-medium text-slate-700; }
+  .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700; }
+}
