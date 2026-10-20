@@ -29,17 +29,6 @@ export interface Schedule {
   status: 'Menunggu Konfirmasi' | 'Terkonfirmasi' | 'Menunggu DP' | 'Selesai'
 }
 
-export interface Testimonial {
-  id: string
-  clientName: string
-  role: string
-  weddingDate: string
-  avatarBg: string
-  rating: 1 | 2 | 3 | 4 | 5
-  content: string
-  packageName: string
-}
-
 export interface GalleryItem {
   id: string
   title: string
@@ -57,12 +46,20 @@ export interface SalonProfile {
   openingHours: string
 }
 
+export interface UserAccount {
+  id: string
+  name: string
+  phone: string
+  pinSalt: string
+  pinHash: string
+}
+
 export interface SalonStore {
   packages: Package[]
   categories: Category[]
   schedules: Schedule[]
-  testimonials: Testimonial[]
   gallery: GalleryItem[]
   profile: SalonProfile
   credentials: { username: string; password: string }
+  users: UserAccount[]
 }

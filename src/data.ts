@@ -50,11 +50,6 @@ export const initialStore: SalonStore = {
     { id: 'jadwal-2', clientName: 'Aulia Rahma', packageName: 'Paes Ageng Jawa', eventDate: '2026-11-14', eventTime: '10:00', session: 'Pagi', location: 'Pendopo Taman Sari', notes: 'Konsultasi busana hari Jumat.', status: 'Menunggu DP' },
     { id: 'jadwal-3', clientName: 'Sinta Maharani', packageName: 'Modern Grace', eventDate: '2026-11-21', eventTime: '13:00', session: 'Siang', location: 'Hotel Aruna', notes: '', status: 'Terkonfirmasi' },
   ],
-  testimonials: [
-    { id: 'ulasan-1', clientName: 'Nadia & Fajar', role: 'Pengantin', weddingDate: 'Oktober 2025', avatarBg: 'bg-rose-100 text-rose-700', rating: 5, content: 'Makeup-nya cantik banget dan tetap nyaman dipakai seharian. Kak Desy sabar mendengarkan semua keinginanku. Banyak tamu yang memuji!', packageName: 'Akad Istimewa' },
-    { id: 'ulasan-2', clientName: 'Intan Permata', role: 'Pengantin', weddingDate: 'September 2025', avatarBg: 'bg-amber-100 text-amber-700', rating: 5, content: 'Paesnya detail dan hasilnya elegan sekali. Timnya tepat waktu, ramah, dan bikin persiapan pagi jadi lebih tenang.', packageName: 'Paes Ageng Jawa' },
-    { id: 'ulasan-3', clientName: 'Dinda Larasati', role: 'Wisudawati', weddingDate: 'Agustus 2025', avatarBg: 'bg-emerald-100 text-emerald-700', rating: 5, content: 'Hasil makeup-nya persis seperti referensi, ringan tapi tahan sampai malam. Foto wisuda jadi makin percaya diri!', packageName: 'Wisuda Cantik' },
-  ],
   gallery: [
     { id: 'foto-1', title: 'Seruni di Pagi Akad', eventType: 'Akad Nikah', tag: 'Soft glam', imageUrl: 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=1000&q=85', description: 'Riasan lembut dengan sentuhan rose untuk akad yang intim.' },
     { id: 'foto-2', title: 'Paes Ageng Ningrat', eventType: 'Resepsi Adat', tag: 'Adat Jawa', imageUrl: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=1000&q=85', description: 'Detail tradisi Jawa yang dirangkai dengan penuh ketelitian.' },
@@ -68,4 +63,5 @@ export const initialStore: SalonStore = {
     address: 'Jl. Desa Pekuncen No.15, Pekuncen, Kec. Jatilawang, Kabupaten Banyumas, Jawa Tengah 53174', openingHours: 'Senin–Minggu, 08.00–17.00 WIB',
   },
   credentials: { username: 'desy', password: 'adminDESI@2026' },
+  users: [],
 }
