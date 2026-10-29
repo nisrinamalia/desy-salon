@@ -46,14 +46,6 @@ export interface SalonProfile {
   openingHours: string
 }
 
-export interface UserAccount {
-  id: string
-  name: string
-  phone: string
-  pinSalt: string
-  pinHash: string
-}
-
 export interface SalonStore {
   packages: Package[]
   categories: Category[]
@@ -61,5 +53,4 @@ export interface SalonStore {
   gallery: GalleryItem[]
   profile: SalonProfile
   credentials: { username: string; password: string }
-  users: UserAccount[]
 }

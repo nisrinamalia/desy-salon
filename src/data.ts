@@ -63,5 +63,4 @@ export const initialStore: SalonStore = {
     address: 'Jl. Desa Pekuncen No.15, Pekuncen, Kec. Jatilawang, Kabupaten Banyumas, Jawa Tengah 53174', openingHours: 'Senin–Minggu, 08.00–17.00 WIB',
   },
   credentials: { username: 'desy', password: 'adminDESI@2026' },
-  users: [],
 }
