@@ -26,7 +26,7 @@ export interface Schedule {
   session: 'Pagi' | 'Siang' | 'Sore' | 'Full Day'
   location: string
   notes: string
-  status: 'Menunggu Konfirmasi' | 'Terkonfirmasi' | 'Menunggu DP' | 'Selesai'
+  status: 'Menunggu Konfirmasi' | 'Terkonfirmasi' | 'Menunggu DP' | 'Lunas'
 }
 
 export interface GalleryItem {

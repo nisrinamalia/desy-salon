@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3,
+  ArrowRight, BadgeCheck, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3,
   Edit3, Heart, Image, Instagram, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle,
   Music2, PackageCheck, Plus, Search, Settings, Sparkles, Trash2, X,
 } from 'lucide-react'
@@ -14,8 +14,7 @@ const legacyProfile = {
   address: 'Jl. Melati Indah No. 18, Yogyakarta',
   openingHours: 'Senin–Sabtu, 09.00–18.00 WIB',
 }
-const sessions = ['Pagi', 'Siang', 'Sore', 'Full Day'] as const
-const scheduleStatuses = ['Menunggu Konfirmasi', 'Terkonfirmasi', 'Menunggu DP', 'Selesai'] as const
+const scheduleStatuses = ['Menunggu Konfirmasi', 'Terkonfirmasi', 'Menunggu DP', 'Lunas'] as const
 const eventTypes = ['Akad Nikah', 'Resepsi Adat', 'Wisuda & Pesta'] as const
 const publicRoutes = ['/', '/paket'] as const
 type PublicRoute = typeof publicRoutes[number]
@@ -26,7 +25,10 @@ function readStore(): SalonStore {
   try {
     const saved = localStorage.getItem(STORE_KEY)
     if (saved) {
-      const parsed = JSON.parse(saved) as Partial<SalonStore> & { users?: unknown }
+      const parsed = JSON.parse(saved) as Partial<Omit<SalonStore, 'schedules'>> & {
+        users?: unknown
+        schedules?: Array<Omit<Schedule, 'status'> & { status: Schedule['status'] | 'Selesai' }>
+      }
       delete parsed.users
       const profile = { ...initialStore.profile, ...parsed.profile }
       if (parsed.profile?.phone === legacyProfile.phone) profile.phone = initialStore.profile.phone
@@ -36,7 +38,11 @@ function readStore(): SalonStore {
       if ((parsed.credentials?.username === 'desy' && parsed.credentials.password === 'desy') || (parsed.credentials?.username === 'admin' && parsed.credentials.password === 'admin123')) {
         Object.assign(credentials, initialStore.credentials)
       }
-      return { ...initialStore, ...parsed, profile, credentials }
+      const schedules: Schedule[] = parsed.schedules?.map((schedule) => ({
+        ...schedule,
+        status: schedule.status === 'Selesai' ? 'Lunas' : schedule.status,
+      })) ?? initialStore.schedules
+      return { ...initialStore, ...parsed, profile, credentials, schedules }
     }
   } catch (error) {
     console.warn('Data salon lokal tidak dapat dibaca.', error)
@@ -186,10 +192,19 @@ function App() {
       setStore((current) => ({ ...current, packages: item ? current.packages.map((entry) => entry.id === id ? entity : entry) : [entity, ...current.packages] }))
     }
     if (kind === 'schedule') {
+      const eventTime = value('eventTime') || undefined
+      const previousSchedule = item as Schedule | undefined
       const entity: Schedule = {
-        id, clientName: value('clientName'), packageName: value('packageName'), eventDate: value('eventDate'),
-        eventTime: value('eventTime') || undefined, whatsapp: value('whatsapp') || undefined,
-        session: value('session') as Schedule['session'], location: value('location'), notes: value('notes'), status: value('status') as Schedule['status'],
+        id,
+        clientName: previousSchedule?.clientName ?? value('clientName'),
+        packageName: previousSchedule?.packageName ?? value('packageName'),
+        eventDate: value('eventDate'),
+        eventTime,
+        whatsapp: previousSchedule?.whatsapp ?? (value('whatsapp') || undefined),
+        session: eventTime ? sessionForTime(eventTime) : previousSchedule?.session ?? 'Full Day',
+        location: value('location'),
+        notes: value('notes'),
+        status: value('status') as Schedule['status'],
       }
       scheduleCollision = store.schedules.find((entry) => entry.id !== id && hasScheduleCollision(entry, entity))
       setStore((current) => ({ ...current, schedules: item ? current.schedules.map((entry) => entry.id === id ? entity : entry) : [entity, ...current.schedules] }))
@@ -291,7 +306,6 @@ function App() {
 
   if (page === 'login') return <LoginPage
     store={store}
-    onBack={() => { setBookingPackage(null); setPage('public'); navigatePublic('/') }}
     onOwnerLogin={loginOwner}
   />
 
@@ -436,7 +450,7 @@ function BookingModal({ item, onClose, onSubmit }: { item: Package; onClose: () 
   return <ModalFrame onClose={onClose}><div className="mb-5 flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-rose-500">Form booking</p><h2 className="mt-1 font-display text-2xl font-semibold text-slate-900">Lengkapi detail reservasi</h2></div><button aria-label="Tutup" onClick={onClose} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-100"><X size={19} /></button></div><div className="mb-5 flex items-center gap-3 rounded-xl bg-rose-50 p-3"><img src={item.image} alt="" className="h-14 w-14 rounded-lg object-cover" /><div><p className="text-xs font-semibold text-slate-600">Paket pilihan</p><p className="font-bold text-slate-900">{item.name}</p></div></div><form onSubmit={onSubmit} className="space-y-4"><div className="grid gap-4 sm:grid-cols-2"><div><label className="label" htmlFor="booking-name">Nama lengkap</label><input required id="booking-name" name="clientName" autoComplete="name" className="field" placeholder="Nama yang bisa kami hubungi" /></div><div><label className="label" htmlFor="booking-phone">Nomor WhatsApp</label><input required id="booking-phone" name="phone" type="tel" inputMode="tel" pattern="[+]?[0-9() -]{9,18}" autoComplete="tel" className="field" placeholder="08xxxxxxxxxx" /></div><div><label className="label" htmlFor="booking-date">Tanggal acara</label><input required id="booking-date" name="date" type="date" min={new Date().toISOString().slice(0, 10)} className="field" /></div><div><label className="label" htmlFor="booking-time">Waktu acara</label><input required id="booking-time" name="time" type="time" className="field" /></div></div><button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700"><MessageCircle size={17} /> Lanjutkan & konfirmasi via WA</button><p className="text-center text-xs font-medium text-slate-600">Booking tersimpan di dashboard admin dan menunggu konfirmasi.</p></form></ModalFrame>
 }
 
-function LoginPage({ store, onBack, onOwnerLogin }: { store: SalonStore; onBack: () => void; onOwnerLogin: () => void }) {
+function LoginPage({ store, onOwnerLogin }: { store: SalonStore; onOwnerLogin: () => void }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -449,16 +463,13 @@ function LoginPage({ store, onBack, onOwnerLogin }: { store: SalonStore; onBack:
 
   return <main className="flex min-h-screen items-center justify-center bg-rose-50/50 px-5 py-10">
     <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-lg sm:p-9">
-      <button onClick={onBack} className="mb-8 inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><ArrowLeft size={16} /> Kembali ke website</button>
       <img src={brandLogo} alt={store.profile.name} className="mb-8 h-12 w-auto max-w-[220px] object-contain object-left" />
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-rose-600">Area admin</p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Login Admin</h1>
-      <p className="mt-2 text-sm font-medium text-slate-600">Masuk untuk mengelola katalog dan jadwal booking.</p>
       <form onSubmit={submit} className="mt-7 space-y-5">
         <div><label className="label" htmlFor="auth-username">Username</label><input required autoComplete="username" id="auth-username" value={username} onChange={(event) => setUsername(event.target.value)} className="field py-3" placeholder="Masukkan username admin" /></div>
         <div><label className="label" htmlFor="auth-password">Password</label><input required autoComplete="current-password" id="auth-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} className="field py-3" placeholder="Masukkan password" /></div>
         {error && <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{error}</p>}
-        <button type="submit" className="btn-primary w-full py-3">Masuk ke dashboard <ArrowRight size={17} /></button>
+        <button type="submit" className="btn-primary w-full py-3">Masuk</button>
       </form>
     </div>
   </main>
@@ -478,7 +489,7 @@ function AdminDashboard({ store, activeTab, setActiveTab, onOpen, onDelete, onCa
   return <div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
       <a href="/" className="flex h-[76px] items-center border-b border-slate-100 px-6"><img src={brandLogo} alt="Desy Salon" className="h-11 w-auto max-w-[190px] object-contain" /></a>
-      <nav className="flex-1 space-y-1 px-3 py-5">{tabs.map(({ name, icon: Icon }) => <button key={name} onClick={() => setActiveTab(name)} className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition ${activeTab === name ? 'bg-rose-50 text-rose-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}><Icon size={18} />{name}{name === 'Jadwal' && <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">{store.schedules.length}</span>}</button>)}</nav>
+      <nav className="flex-1 space-y-1 px-3 py-5">{tabs.map(({ name, icon: Icon }) => <button key={name} onClick={() => setActiveTab(name)} className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition ${activeTab === name ? 'bg-rose-50 text-rose-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}><Icon size={18} />{name}</button>)}</nav>
       <div className="border-t border-slate-100 p-4"><div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-700"><Settings size={17} /></span><div className="min-w-0"><p className="text-sm font-semibold text-slate-800">Desy</p><p className="text-xs text-slate-500">Pemilik studio</p></div></div></div>
     </aside>
     <div className="min-w-0 lg:pl-64">
@@ -490,7 +501,7 @@ function AdminDashboard({ store, activeTab, setActiveTab, onOpen, onDelete, onCa
         </div>
       </header>
       <main className="mx-auto min-w-0 max-w-[1440px] px-3 py-5 sm:px-8 sm:py-7 lg:px-9">
-        <section className="mb-5 grid grid-cols-2 gap-2 sm:mb-7 sm:gap-3 xl:grid-cols-3"><StatCard title="Paket Katalog" count={store.packages.length} detail="Pilihan layanan" icon={PackageCheck} color="rose" /><StatCard title="Foto Portofolio" count={store.gallery.length} detail="Karya pilihan" icon={Image} color="amber" /><StatCard title="Booking Mendatang" count={store.schedules.filter((item) => item.status !== 'Selesai').length} detail="Perlu ditangani" icon={CalendarDays} color="sky" /></section>
+        <section className="mb-5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:mb-7 sm:gap-3 xl:grid-cols-3"><StatCard title="Paket Katalog" count={store.packages.length} detail="Pilihan layanan" icon={PackageCheck} color="rose" /><StatCard title="Foto Portofolio" count={store.gallery.length} detail="Karya pilihan" icon={Image} color="amber" /><StatCard title="Booking Mendatang" count={store.schedules.filter((item) => item.status !== 'Lunas').length} detail="Perlu ditangani" icon={CalendarDays} color="sky" /></section>
         <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex max-w-full gap-1 overflow-x-auto border-b border-slate-200 px-2 pt-3 sm:px-5">{tabs.map(({ name, icon: Icon }) => <button key={name} onClick={() => setActiveTab(name)} className={`inline-flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm ${activeTab === name ? 'border-rose-500 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Icon size={16} />{name}</button>)}</div><div className="min-w-0 p-3 sm:p-6">{activeTab === 'Katalog' && <PackagesManager store={store} onOpen={onOpen} onDelete={onDelete} />}{activeTab === 'Kategori' && <CategoriesManager store={store} onAdd={onCategoryAdd} onRemove={onCategoryRemove} />}{activeTab === 'Jadwal' && <SchedulesManager store={store} onOpen={onOpen} onDelete={onDelete} />}{activeTab === 'Portfolio' && <GalleryManager store={store} onOpen={onOpen} onDelete={onDelete} />}{activeTab === 'Pengaturan' && <SettingsManager store={store} onSave={onSettingsSave} onLogout={onLogout} />}</div></section>
         <p className="mt-5 flex items-center gap-1.5 text-xs text-slate-400"><BadgeCheck size={14} /> Data tersimpan otomatis di perangkat ini.</p>
       </main>
@@ -511,7 +522,22 @@ function EmptyState({ label }: { label: string }) { return <div className="round
 function RowActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) { return <div className="flex items-center justify-end gap-2"><button type="button" aria-label="Edit" title="Edit" onClick={onEdit} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"><Edit3 size={17} /></button><button type="button" aria-label="Hapus" title="Hapus" onClick={onDelete} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"><Trash2 size={17} /></button></div> }
 
 function PackagesManager({ store, onOpen, onDelete }: { store: SalonStore; onOpen: (kind: EditorKind, item?: Package | Schedule | GalleryItem) => void; onDelete: (collection: 'packages' | 'schedules' | 'gallery', id: string) => void }) {
-  return <><PanelHeading title="Kelola Paket" description="Atur layanan, harga, dan informasi katalog publik." onAdd={() => onOpen('package')} addLabel="Tambah paket" />{store.packages.length ? <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left"><thead><tr className="border-y border-slate-100 text-[11px] uppercase tracking-wider text-slate-400"><th className="py-3 pr-4 font-semibold">Paket</th><th className="px-4 py-3 font-semibold">Kategori</th><th className="px-4 py-3 font-semibold">Harga</th><th className="px-4 py-3 font-semibold">Label</th><th className="py-3 pl-4 text-right font-semibold">Aksi</th></tr></thead><tbody>{store.packages.map((item) => <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="py-3 pr-4"><div className="flex items-center gap-3"><img src={item.image} alt="" className="h-11 w-14 rounded-lg object-cover" /><div><p className="text-sm font-semibold text-slate-800">{item.name}</p><p className="max-w-xs truncate text-xs text-slate-400">{item.description}</p></div></div></td><td className="px-4 py-3 text-sm text-slate-600">{item.category}</td><td className="px-4 py-3 text-sm font-semibold text-slate-700">{rupiah(item.price)}</td><td className="px-4 py-3">{item.badge ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span> : <span className="text-xs text-slate-300">-</span>}</td><td className="py-3 pl-4"><RowActions onEdit={() => onOpen('package', item)} onDelete={() => onDelete('packages', item.id)} /></td></tr>)}</tbody></table></div> : <EmptyState label="Belum ada paket. Tambahkan paket pertama." />}</>
+  return <>
+    <PanelHeading title="Kelola Paket" description="Atur layanan, harga, dan informasi katalog publik." onAdd={() => onOpen('package')} addLabel="Tambah paket" />
+    {store.packages.length ? <>
+      <div className="grid gap-3 sm:hidden">
+        {store.packages.map((item) => <article key={item.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <img src={item.image} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+            <div className="min-w-0 flex-1"><h3 className="break-words text-sm font-bold text-slate-900">{item.name}</h3><p className="mt-1 text-xs font-semibold text-slate-600">{item.category}</p><p className="mt-1 break-words text-xs text-slate-600">{rupiah(item.price)}</p>{item.badge && <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span>}</div>
+          </div>
+          <p className="mt-3 break-words text-xs leading-5 text-slate-600">{item.description}</p>
+          <div className="mt-3 border-t border-slate-100 pt-3"><RowActions onEdit={() => onOpen('package', item)} onDelete={() => onDelete('packages', item.id)} /></div>
+        </article>)}
+      </div>
+      <div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[720px] text-left"><thead><tr className="border-y border-slate-100 text-[11px] uppercase tracking-wider text-slate-500"><th className="py-3 pr-4 font-semibold">Paket</th><th className="px-4 py-3 font-semibold">Kategori</th><th className="px-4 py-3 font-semibold">Harga</th><th className="px-4 py-3 font-semibold">Label</th><th className="py-3 pl-4 text-right font-semibold">Aksi</th></tr></thead><tbody>{store.packages.map((item) => <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="py-3 pr-4"><div className="flex items-center gap-3"><img src={item.image} alt="" className="h-11 w-14 rounded-lg object-cover" /><div className="min-w-0"><p className="text-sm font-semibold text-slate-800">{item.name}</p><p className="max-w-xs truncate text-xs text-slate-500">{item.description}</p></div></div></td><td className="px-4 py-3 text-sm text-slate-700">{item.category}</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">{rupiah(item.price)}</td><td className="px-4 py-3">{item.badge ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span> : <span className="text-xs text-slate-500">-</span>}</td><td className="py-3 pl-4"><RowActions onEdit={() => onOpen('package', item)} onDelete={() => onDelete('packages', item.id)} /></td></tr>)}</tbody></table></div>
+    </> : <EmptyState label="Belum ada paket. Tambahkan paket pertama." />}
+  </>
 }
 
 function CategoriesManager({ store, onAdd, onRemove }: { store: SalonStore; onAdd: (event: FormEvent<HTMLFormElement>) => void; onRemove: (category: Category) => void }) {
@@ -519,13 +545,87 @@ function CategoriesManager({ store, onAdd, onRemove }: { store: SalonStore; onAd
 }
 
 function SchedulesManager({ store, onOpen, onDelete }: { store: SalonStore; onOpen: (kind: EditorKind, item?: Package | Schedule | GalleryItem) => void; onDelete: (collection: 'packages' | 'schedules' | 'gallery', id: string) => void }) {
+  const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null)
   const ordered = [...store.schedules].sort((a, b) => a.eventDate.localeCompare(b.eventDate))
-  return <><PanelHeading title="Jadwal Booking" description="Informasi booking ditampilkan mendatar agar mudah dibaca. Bentrok ditentukan berdasarkan tanggal dan waktu yang sama." onAdd={() => onOpen('schedule')} addLabel="Tambah jadwal" />{ordered.length ? <div className="space-y-3">{ordered.map((item) => { const collisions = store.schedules.filter((other) => other.id !== item.id && hasScheduleCollision(other, item)); return <article key={item.id} className={`grid items-center gap-4 rounded-xl border p-4 md:grid-cols-[minmax(0,1.35fr)_minmax(150px,1fr)_minmax(150px,1.1fr)_auto] ${collisions.length ? 'border-rose-200 bg-rose-50/50' : 'border-slate-200 bg-white'}`}><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-base font-bold text-slate-900">{item.clientName}</h3>{collisions.length > 0 && <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white">Bentrok</span>}</div>{item.whatsapp && <a className="mt-1 inline-flex text-sm font-semibold text-emerald-700 hover:underline" href={`https://wa.me/${item.whatsapp}`} target="_blank" rel="noreferrer">WhatsApp: +{item.whatsapp}</a>}{item.notes && <p className="mt-1 text-xs font-medium text-slate-600">Catatan: {item.notes}</p>}</div><div className="text-sm font-semibold text-slate-800"><p>{formatDate(item.eventDate)}</p><p className="mt-1 text-slate-600">{item.eventTime ? `${item.eventTime} WIB` : item.session}</p></div><div className="min-w-0 text-sm font-semibold text-slate-800"><p className="truncate">{item.packageName}</p><div className="mt-1 flex flex-wrap items-center gap-2"><StatusBadge status={item.status} />{item.location && <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600"><MapPin size={13} />{item.location}</span>}</div>{collisions.length > 0 && <p className="mt-1 text-xs font-bold text-rose-700">Bentrok dengan {collisions.map((entry) => entry.clientName).join(', ')}</p>}</div><RowActions onEdit={() => onOpen('schedule', item)} onDelete={() => onDelete('schedules', item.id)} /></article> })}</div> : <EmptyState label="Belum ada booking tercatat." />}</>
+  function editSchedule(schedule: Schedule) {
+    setSelectedSchedule(null)
+    onOpen('schedule', schedule)
+  }
+  return <>
+    <PanelHeading title="Jadwal Booking" description="Berikut booking pelanggan" onAdd={() => onOpen('schedule')} addLabel="Tambah jadwal" />
+    {ordered.length ? <>
+      <div className="grid gap-3 md:hidden">
+        {ordered.map((item) => {
+          const collisions = store.schedules.filter((other) => other.id !== item.id && hasScheduleCollision(other, item))
+          return <article key={item.id} role="button" tabIndex={0} onClick={() => setSelectedSchedule(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedSchedule(item) } }} className="min-w-0 cursor-pointer rounded-xl border border-slate-200 bg-white p-3 transition hover:border-rose-200 hover:bg-rose-50/30 focus:outline-none focus:ring-2 focus:ring-rose-200 sm:p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="break-words text-sm font-bold text-slate-900">{item.clientName}</h3>{collisions.length > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Bentrok</span>}</div><p className="mt-1 break-words text-xs font-semibold text-slate-700">{item.packageName}</p></div>
+              <div onClick={(event) => event.stopPropagation()}><RowActions onEdit={() => editSchedule(item)} onDelete={() => onDelete('schedules', item.id)} /></div>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 min-[380px]:grid-cols-2">
+              <div><p className="text-[11px] font-bold uppercase text-slate-500">Pelaksanaan</p><p className="mt-1 text-xs font-semibold text-slate-800">{formatDate(item.eventDate)}{item.eventTime ? ` · ${item.eventTime} WIB` : ''}</p></div>
+              <div><p className="text-[11px] font-bold uppercase text-slate-500">Status</p><div className="mt-1"><StatusBadge status={item.status} /></div></div>
+              <div className="min-w-0 min-[380px]:col-span-2"><p className="text-[11px] font-bold uppercase text-slate-500">Lokasi</p><p className="mt-1 flex items-start gap-1 break-words text-xs font-medium text-slate-700"><MapPin size={14} className="mt-0.5 shrink-0 text-rose-500" />{item.location || 'Lokasi belum diisi'}</p></div>
+            </div>
+            {item.notes && <p className="mt-3 break-words border-t border-slate-100 pt-3 text-xs leading-5 text-slate-700"><span className="font-bold">Catatan:</span> {item.notes}</p>}
+          </article>
+        })}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+      <table className="w-full min-w-[780px] table-fixed text-left">
+        <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+          <tr>
+            <th className="w-[24%] px-4 py-3">Nama pelanggan</th>
+            <th className="w-[26%] px-4 py-3">Pelaksanaan</th>
+            <th className="w-[20%] px-4 py-3">Paket</th>
+            <th className="w-[17%] px-4 py-3">Status</th>
+            <th className="w-[13%] px-4 py-3 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {ordered.map((item) => {
+            const collisions = store.schedules.filter((other) => other.id !== item.id && hasScheduleCollision(other, item))
+            return <tr key={item.id} tabIndex={0} onClick={() => setSelectedSchedule(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedSchedule(item) } }} className="cursor-pointer bg-white transition hover:bg-rose-50/50 focus:bg-rose-50/50 focus:outline-none">
+              <td className="px-4 py-4 align-top">
+                <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-slate-900">{item.clientName}</span>{collisions.length > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Bentrok</span>}</div>
+                {item.notes && <p className="mt-2 line-clamp-2 text-xs font-medium leading-5 text-slate-600"><span className="font-bold text-slate-700">Catatan:</span> {item.notes}</p>}
+              </td>
+              <td className="px-4 py-4 align-top"><p className="text-sm font-semibold text-slate-800">{formatDate(item.eventDate)}</p>{item.eventTime && <p className="mt-1 text-xs font-medium text-slate-600">{item.eventTime} WIB</p>}<p className="mt-2 flex items-start gap-1 text-xs leading-5 text-slate-600"><MapPin size={14} className="mt-0.5 shrink-0 text-rose-500" />{item.location || 'Lokasi belum diisi'}</p></td>
+              <td className="px-4 py-4 align-top text-sm font-semibold text-slate-800">{item.packageName}</td>
+              <td className="px-4 py-4 align-top"><StatusBadge status={item.status} /></td>
+              <td className="px-4 py-4 align-top" onClick={(event) => event.stopPropagation()}><RowActions onEdit={() => editSchedule(item)} onDelete={() => onDelete('schedules', item.id)} /></td>
+            </tr>
+          })}
+        </tbody>
+      </table>
+      </div>
+    </> : <EmptyState label="Belum ada booking tercatat." />}
+    {selectedSchedule && <ScheduleDetailsModal schedule={selectedSchedule} collisions={store.schedules.filter((item) => item.id !== selectedSchedule.id && hasScheduleCollision(item, selectedSchedule))} onClose={() => setSelectedSchedule(null)} onEdit={() => editSchedule(selectedSchedule)} />}
+  </>
 }
 
 function StatusBadge({ status }: { status: Schedule['status'] }) {
-  const cls = status === 'Terkonfirmasi' ? 'bg-emerald-50 text-emerald-700' : status === 'Menunggu Konfirmasi' ? 'bg-sky-50 text-sky-700' : status === 'Menunggu DP' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
+  const cls = status === 'Terkonfirmasi' || status === 'Lunas' ? 'bg-emerald-50 text-emerald-700' : status === 'Menunggu Konfirmasi' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800'
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}`}>{status}</span>
+}
+
+function ScheduleDetailsModal({ schedule, collisions, onClose, onEdit }: { schedule: Schedule; collisions: Schedule[]; onClose: () => void; onEdit: () => void }) {
+  return <ModalFrame onClose={onClose}>
+    <div className="mb-5 flex items-start justify-between gap-4">
+      <div><p className="text-xs font-bold uppercase tracking-widest text-rose-600">Detail booking</p><h2 className="mt-1 text-2xl font-bold text-slate-900">{schedule.clientName}</h2></div>
+      <button aria-label="Tutup" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><X size={19} /></button>
+    </div>
+    {collisions.length > 0 && <p className="mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">Jadwal bentrok dengan {collisions.map((item) => item.clientName).join(', ')}</p>}
+    <div className="grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+      <div><p className="text-xs font-semibold text-slate-500">Pelaksanaan</p><p className="mt-1 font-bold text-slate-900">{formatDate(schedule.eventDate)}</p>{schedule.eventTime && <p className="text-sm font-medium text-slate-700">{schedule.eventTime} WIB</p>}</div>
+      <div><p className="text-xs font-semibold text-slate-500">Status</p><div className="mt-2"><StatusBadge status={schedule.status} /></div></div>
+      <div><p className="text-xs font-semibold text-slate-500">Paket</p><p className="mt-1 font-bold text-slate-900">{schedule.packageName}</p></div>
+      <div><p className="text-xs font-semibold text-slate-500">Lokasi</p><p className="mt-1 font-semibold text-slate-800">{schedule.location || 'Belum diisi'}</p></div>
+      {schedule.whatsapp && <div className="sm:col-span-2"><p className="text-xs font-semibold text-slate-500">WhatsApp</p><a className="mt-1 inline-flex font-semibold text-emerald-700 hover:underline" href={`https://wa.me/${schedule.whatsapp}`} target="_blank" rel="noreferrer">+{schedule.whatsapp}</a></div>}
+      <div className="sm:col-span-2"><p className="text-xs font-semibold text-slate-500">Catatan</p><p className="mt-1 whitespace-pre-wrap font-medium text-slate-800">{schedule.notes || 'Tidak ada catatan.'}</p></div>
+    </div>
+    <div className="mt-5 flex justify-end"><button type="button" onClick={onEdit} className="btn-primary"><Edit3 size={16} />Edit jadwal</button></div>
+  </ModalFrame>
 }
 
 function GalleryManager({ store, onOpen, onDelete }: { store: SalonStore; onOpen: (kind: EditorKind, item?: Package | Schedule | GalleryItem) => void; onDelete: (collection: 'packages' | 'schedules' | 'gallery', id: string) => void }) {
@@ -551,7 +651,7 @@ function EntityModal({ editor, store, onClose, onSave }: { editor: { kind: Edito
   const imageField = (name: 'image' | 'imageUrl', label: string) => <div className="sm:col-span-2"><span className="label">{label} *</span><input type="hidden" name={name} value={imageData} /><label htmlFor="editor-image-file" className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-rose-200 bg-rose-50/60 px-4 py-4 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50"><Image size={17} />Pilih gambar dari perangkat<input id="editor-image-file" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" required={!imageData} className="sr-only" onChange={async (event) => { const file = event.currentTarget.files?.[0]; if (!file) return; const fileInput = event.currentTarget; setImageError(''); try { setImageData(await imageFileToDataUrl(file)); setSelectedFileName(file.name) } catch (error) { setImageError(error instanceof Error ? error.message : 'Gambar tidak dapat diproses.'); fileInput.value = '' } }} /></label><p className="mt-1.5 text-xs text-slate-400">PNG, JPG, atau JPEG. Maks. 15 MB; gambar akan diperkecil untuk penyimpanan.</p>{selectedFileName && <p className="mt-1 text-xs font-medium text-slate-600">File dipilih: {selectedFileName}</p>}{imageError && <p role="alert" className="mt-2 text-xs font-medium text-rose-600">{imageError}</p>}{imageData && <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-100 p-2.5"><img src={imageData} alt="Preview gambar" className="h-16 w-20 rounded-lg bg-slate-100 object-cover" /><span className="flex-1 text-xs font-medium text-slate-600">Preview gambar</span><button type="button" onClick={() => { setImageData(''); setSelectedFileName('') }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50">Hapus</button></div>}</div>
   return <ModalFrame onClose={onClose}><div className="mb-5 flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-widest text-rose-500">Studio Manager</p><h2 className="mt-1 font-display text-2xl font-semibold text-slate-900">{titles[kind]}</h2></div><button aria-label="Tutup" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={19} /></button></div><form onSubmit={(event) => onSave(event, kind, item)} className="grid max-h-[70vh] gap-4 overflow-y-auto px-0.5 sm:grid-cols-2">
     {kind === 'package' && <>{input('Nama paket *', 'name', packageItem?.name, { required: 'true', placeholder: 'Contoh: Akad Istimewa' })}{select('Kategori', 'category', store.categories.map((category) => category.name), packageItem?.category)}{input('Harga (angka) *', 'price', packageItem ? String(packageItem.price) : '', { type: 'number', min: '1', required: 'true', placeholder: '1850000' })}{input('Harga sebelum diskon', 'originalPrice', packageItem?.originalPrice ? String(packageItem.originalPrice) : '', { type: 'number', min: '1', placeholder: 'Opsional' })}{input('Badge promo', 'badge', packageItem?.badge, { placeholder: 'Contoh: Favorit' })}{imageField('image', 'Foto paket')}{textarea('Deskripsi', 'description', packageItem?.description, 'Ceritakan keunggulan paket...')}{textarea('Fitur (satu fitur per baris)', 'features', packageItem?.features.join('\n'), 'Makeup premium\nHairdo')}<p className="sm:col-span-2 -mt-3 text-[11px] text-slate-400">Setiap baris akan menjadi satu fitur paket.</p></>}
-    {kind === 'schedule' && <>{input('Nama klien *', 'clientName', scheduleItem?.clientName, { required: 'true', placeholder: 'Nama lengkap' })}{input('Nomor WhatsApp', 'whatsapp', scheduleItem?.whatsapp, { type: 'tel', placeholder: '628xxxxxxxxxx' })}{select('Paket', 'packageName', store.packages.map((entry) => entry.name), scheduleItem?.packageName)}{input('Tanggal acara *', 'eventDate', scheduleItem?.eventDate, { type: 'date', required: 'true' })}{input('Waktu acara', 'eventTime', scheduleItem?.eventTime, { type: 'time' })}{select('Sesi', 'session', sessions, scheduleItem?.session)}{select('Status', 'status', scheduleStatuses, scheduleItem?.status)}{input('Lokasi rias', 'location', scheduleItem?.location, { placeholder: 'Gedung / alamat' })}{textarea('Catatan', 'notes', scheduleItem?.notes, 'Kebutuhan khusus...')}</>}
+    {kind === 'schedule' && <>{!scheduleItem && <>{input('Nama klien *', 'clientName', '', { required: 'true', placeholder: 'Nama lengkap' })}{input('Nomor WhatsApp', 'whatsapp', '', { type: 'tel', placeholder: '628xxxxxxxxxx' })}{select('Paket', 'packageName', store.packages.map((entry) => entry.name))}</>}{input('Tanggal acara *', 'eventDate', scheduleItem?.eventDate, { type: 'date', required: 'true' })}{input('Waktu acara', 'eventTime', scheduleItem?.eventTime, { type: 'time' })}{select('Status', 'status', scheduleStatuses, scheduleItem?.status)}{input('Lokasi rias', 'location', scheduleItem?.location, { placeholder: 'Gedung / alamat' })}{textarea('Catatan', 'notes', scheduleItem?.notes, 'Kebutuhan khusus...')}</>}
     {kind === 'gallery' && <>{input('Judul gaya *', 'title', galleryItem?.title, { required: 'true', placeholder: 'Contoh: Seruni di Pagi Akad' })}{select('Jenis momen', 'eventType', eventTypes, galleryItem?.eventType)}{input('Tag', 'tag', galleryItem?.tag, { placeholder: 'Soft glam / Adat Jawa' })}{imageField('imageUrl', 'Foto galeri')}{textarea('Deskripsi', 'description', galleryItem?.description, 'Deskripsi singkat foto...')}</>}
     <div className="sticky bottom-0 flex justify-end gap-2 bg-white pt-2 sm:col-span-2"><button type="button" onClick={onClose} className="btn-secondary">Batal</button><button type="submit" className="btn-primary"><Check size={16} />Simpan</button></div>
   </form></ModalFrame>
@@ -563,7 +663,7 @@ function ModalFrame({ children, onClose }: { children: ReactNode; onClose: () =>
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
-  return <div onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }} className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm"><div role="dialog" aria-modal="true" className="my-auto w-full max-w-xl rounded-2xl border border-white/70 bg-white p-5 shadow-2xl sm:p-6">{children}</div></div>
+  return <div onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }} className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-sm sm:p-4"><div role="dialog" aria-modal="true" className="my-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/70 bg-white p-4 shadow-2xl sm:p-6">{children}</div></div>
 }
 
 function Toast({ message, onClose }: { message: string; onClose: () => void }) {
