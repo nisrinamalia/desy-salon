@@ -571,32 +571,29 @@ function SchedulesManager({ store, onOpen, onDelete }: { store: SalonStore; onOp
           </article>
         })}
       </div>
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
-      <table className="w-full min-w-[780px] table-fixed text-left">
-        <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
-          <tr>
-            <th className="w-[24%] px-4 py-3">Nama pelanggan</th>
-            <th className="w-[26%] px-4 py-3">Pelaksanaan</th>
-            <th className="w-[20%] px-4 py-3">Paket</th>
-            <th className="w-[17%] px-4 py-3">Status</th>
-            <th className="w-[13%] px-4 py-3 text-right">Aksi</th>
+      <div className="hidden overflow-x-auto md:block">
+      <table className="w-full min-w-[720px] text-left">
+        <thead><tr className="border-y border-slate-100 text-[11px] uppercase tracking-wider text-slate-500">
+            <th className="py-3 pr-4 font-semibold">Nama pelanggan</th>
+            <th className="px-4 py-3 font-semibold">Pelaksanaan</th>
+            <th className="px-4 py-3 font-semibold">Paket</th>
+            <th className="px-4 py-3 font-semibold">Status</th>
+            <th className="py-3 pl-4 text-right font-semibold">Aksi</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
-          {ordered.map((item) => {
+        <tbody>{ordered.map((item) => {
             const collisions = store.schedules.filter((other) => other.id !== item.id && hasScheduleCollision(other, item))
-            return <tr key={item.id} tabIndex={0} onClick={() => setSelectedSchedule(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedSchedule(item) } }} className="cursor-pointer bg-white transition hover:bg-rose-50/50 focus:bg-rose-50/50 focus:outline-none">
-              <td className="px-4 py-4 align-top">
-                <div className="flex flex-wrap items-center gap-2"><span className="font-bold text-slate-900">{item.clientName}</span>{collisions.length > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Bentrok</span>}</div>
-                {item.notes && <p className="mt-2 line-clamp-2 text-xs font-medium leading-5 text-slate-600"><span className="font-bold text-slate-700">Catatan:</span> {item.notes}</p>}
+            return <tr key={item.id} tabIndex={0} onClick={() => setSelectedSchedule(item)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedSchedule(item) } }} className="cursor-pointer border-b border-slate-100 bg-white transition last:border-0 hover:bg-rose-50/50 focus:bg-rose-50/50 focus:outline-none">
+              <td className="py-3 pr-4 align-top">
+                <div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-slate-800">{item.clientName}</span>{collisions.length > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">Bentrok</span>}</div>
+                {item.notes && <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500"><span className="font-semibold text-slate-600">Catatan:</span> {item.notes}</p>}
               </td>
-              <td className="px-4 py-4 align-top"><p className="text-sm font-semibold text-slate-800">{formatDate(item.eventDate)}</p>{item.eventTime && <p className="mt-1 text-xs font-medium text-slate-600">{item.eventTime} WIB</p>}<p className="mt-2 flex items-start gap-1 text-xs leading-5 text-slate-600"><MapPin size={14} className="mt-0.5 shrink-0 text-rose-500" />{item.location || 'Lokasi belum diisi'}</p></td>
-              <td className="px-4 py-4 align-top text-sm font-semibold text-slate-800">{item.packageName}</td>
-              <td className="px-4 py-4 align-top"><StatusBadge status={item.status} /></td>
-              <td className="px-4 py-4 align-top" onClick={(event) => event.stopPropagation()}><RowActions onEdit={() => editSchedule(item)} onDelete={() => onDelete('schedules', item.id)} /></td>
+              <td className="px-4 py-3 align-top"><p className="text-sm font-semibold text-slate-800">{formatDate(item.eventDate)}</p>{item.eventTime && <p className="mt-1 text-xs text-slate-500">{item.eventTime} WIB</p>}<p className="mt-1.5 flex items-start gap-1 text-xs leading-5 text-slate-600"><MapPin size={14} className="mt-0.5 shrink-0 text-rose-500" />{item.location || 'Lokasi belum diisi'}</p></td>
+              <td className="px-4 py-3 align-top text-sm font-semibold text-slate-700">{item.packageName}</td>
+              <td className="px-4 py-3 align-top"><StatusBadge status={item.status} /></td>
+              <td className="py-3 pl-4 text-right align-top" onClick={(event) => event.stopPropagation()}><RowActions onEdit={() => editSchedule(item)} onDelete={() => onDelete('schedules', item.id)} /></td>
             </tr>
-          })}
-        </tbody>
+          })}</tbody>
       </table>
       </div>
     </> : <EmptyState label="Belum ada booking tercatat." />}
@@ -606,7 +603,7 @@ function SchedulesManager({ store, onOpen, onDelete }: { store: SalonStore; onOp
 
 function StatusBadge({ status }: { status: Schedule['status'] }) {
   const cls = status === 'Terkonfirmasi' || status === 'Lunas' ? 'bg-emerald-50 text-emerald-700' : status === 'Menunggu Konfirmasi' ? 'bg-sky-50 text-sky-700' : 'bg-amber-50 text-amber-800'
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}`}>{status}</span>
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${cls}`}>{status}</span>
 }
 
 function ScheduleDetailsModal({ schedule, collisions, onClose, onEdit }: { schedule: Schedule; collisions: Schedule[]; onClose: () => void; onEdit: () => void }) {
