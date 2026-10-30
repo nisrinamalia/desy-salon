@@ -134,6 +134,7 @@ function App() {
   const [editor, setEditor] = useState<{ kind: EditorKind; item?: Package | Schedule | GalleryItem } | null>(null)
   const [notice, setNotice] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmation, setConfirmation] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   useEffect(() => {
     const syncRoute = () => setPublicRoute(publicRoutes.includes(window.location.pathname as PublicRoute) ? window.location.pathname as PublicRoute : '/')
@@ -222,9 +223,17 @@ function App() {
   }
 
   function deleteEntity(collection: 'packages' | 'schedules' | 'gallery', id: string) {
-    if (!window.confirm('Hapus data ini? Tindakan ini tidak dapat dibatalkan.')) return
-    setStore((current) => ({ ...current, [collection]: current[collection].filter((entry) => entry.id !== id) }))
-    setNotice('Data berhasil dihapus.')
+    const item = store[collection].find((entry) => entry.id === id)
+    if (!item) return
+    const labels = { packages: 'paket', schedules: 'jadwal', gallery: 'portofolio' }
+    const name = 'name' in item ? item.name : 'clientName' in item ? item.clientName : item.title
+    setConfirmation({
+      message: `Yakin ingin menghapus ${labels[collection]} "${name}"?`,
+      onConfirm: () => {
+        setStore((current) => ({ ...current, [collection]: current[collection].filter((entry) => entry.id !== id) }))
+        setNotice('Data berhasil dihapus.')
+      },
+    })
   }
 
   function submitCategory(event: FormEvent<HTMLFormElement>) {
@@ -257,9 +266,13 @@ function App() {
 
   function removeCategory(category: Category) {
     if (store.packages.some((item) => item.category === category.name)) return setNotice('Kategori masih dipakai paket. Pindahkan atau hapus paket terkait terlebih dahulu.')
-    if (!window.confirm(`Hapus kategori ${category.name}?`)) return
-    setStore((current) => ({ ...current, categories: current.categories.filter((entry) => entry.id !== category.id) }))
-    setNotice('Kategori berhasil dihapus.')
+    setConfirmation({
+      message: `Yakin ingin menghapus kategori "${category.name}"?`,
+      onConfirm: () => {
+        setStore((current) => ({ ...current, categories: current.categories.filter((entry) => entry.id !== category.id) }))
+        setNotice('Kategori berhasil dihapus.')
+      },
+    })
   }
 
   function submitBooking(event: FormEvent<HTMLFormElement>) {
@@ -304,14 +317,22 @@ function App() {
     navigatePublic('/')
   }
 
+  function confirmLogout() {
+    setConfirmation({
+      message: 'Yakin ingin keluar dari sistem admin?',
+      onConfirm: logout,
+    })
+  }
+
   if (page === 'login') return <LoginPage
     store={store}
     onOwnerLogin={loginOwner}
   />
 
   if (page === 'admin') return <>
-    <AdminDashboard store={store} activeTab={activeTab} setActiveTab={setActiveTab} onOpen={openEditor} onDelete={deleteEntity} onCategoryAdd={submitCategory} onCategoryRemove={removeCategory} onSettingsSave={saveSettings} onLogout={logout} />
+    <AdminDashboard store={store} activeTab={activeTab} setActiveTab={setActiveTab} onOpen={openEditor} onDelete={deleteEntity} onCategoryAdd={submitCategory} onCategoryRemove={removeCategory} onSettingsSave={saveSettings} onLogout={confirmLogout} />
     {editor && <EntityModal editor={editor} store={store} onClose={() => setEditor(null)} onSave={saveEntity} />}
+    {confirmation && <ConfirmationModal message={confirmation.message} onCancel={() => setConfirmation(null)} onConfirm={() => { const confirm = confirmation.onConfirm; setConfirmation(null); confirm() }} />}
     {notice && <Toast message={notice} onClose={() => setNotice('')} />}
   </>
 
@@ -525,17 +546,17 @@ function PackagesManager({ store, onOpen, onDelete }: { store: SalonStore; onOpe
   return <>
     <PanelHeading title="Kelola Paket" description="Atur layanan, harga, dan informasi katalog publik." onAdd={() => onOpen('package')} addLabel="Tambah paket" />
     {store.packages.length ? <>
-      <div className="grid gap-3 sm:hidden">
+      <div className="grid gap-3 lg:hidden">
         {store.packages.map((item) => <article key={item.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex min-w-0 items-start gap-3">
             <img src={item.image} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
-            <div className="min-w-0 flex-1"><h3 className="break-words text-sm font-bold text-slate-900">{item.name}</h3><p className="mt-1 text-xs font-semibold text-slate-600">{item.category}</p><p className="mt-1 break-words text-xs text-slate-600">{rupiah(item.price)}</p>{item.badge && <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span>}</div>
+            <div className="min-w-0 flex-1"><h3 className="break-words text-sm font-bold text-slate-900">{item.name}</h3><p className="mt-1 text-xs font-semibold text-slate-600">{item.category}</p><p className="mt-1 break-words text-xs text-slate-600">{rupiah(item.price)}</p>{item.badge && <span className="mt-2 inline-flex whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span>}</div>
           </div>
           <p className="mt-3 break-words text-xs leading-5 text-slate-600">{item.description}</p>
           <div className="mt-3 border-t border-slate-100 pt-3"><RowActions onEdit={() => onOpen('package', item)} onDelete={() => onDelete('packages', item.id)} /></div>
         </article>)}
       </div>
-      <div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[720px] text-left"><thead><tr className="border-y border-slate-100 text-[11px] uppercase tracking-wider text-slate-500"><th className="py-3 pr-4 font-semibold">Paket</th><th className="px-4 py-3 font-semibold">Kategori</th><th className="px-4 py-3 font-semibold">Harga</th><th className="px-4 py-3 font-semibold">Label</th><th className="py-3 pl-4 text-right font-semibold">Aksi</th></tr></thead><tbody>{store.packages.map((item) => <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="py-3 pr-4"><div className="flex items-center gap-3"><img src={item.image} alt="" className="h-11 w-14 rounded-lg object-cover" /><div className="min-w-0"><p className="text-sm font-semibold text-slate-800">{item.name}</p><p className="max-w-xs truncate text-xs text-slate-500">{item.description}</p></div></div></td><td className="px-4 py-3 text-sm text-slate-700">{item.category}</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">{rupiah(item.price)}</td><td className="px-4 py-3">{item.badge ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span> : <span className="text-xs text-slate-500">-</span>}</td><td className="py-3 pl-4"><RowActions onEdit={() => onOpen('package', item)} onDelete={() => onDelete('packages', item.id)} /></td></tr>)}</tbody></table></div>
+      <div className="hidden overflow-x-auto lg:block"><table className="w-full min-w-[800px] text-left"><thead><tr className="border-y border-slate-100 text-[11px] uppercase tracking-wider text-slate-500"><th className="py-3 pr-4 font-semibold">Paket</th><th className="px-4 py-3 font-semibold">Kategori</th><th className="px-4 py-3 font-semibold">Harga</th><th className="px-4 py-3 font-semibold">Label</th><th className="py-3 pl-4 text-center font-semibold">Aksi</th></tr></thead><tbody>{store.packages.map((item) => <tr key={item.id} className="border-b border-slate-100 last:border-0"><td className="py-3 pr-4"><div className="flex items-center gap-3"><img src={item.image} alt="" className="h-11 w-14 rounded-lg object-cover" /><div className="min-w-0"><p className="text-sm font-semibold text-slate-800">{item.name}</p><p className="max-w-xs truncate text-xs text-slate-500">{item.description}</p></div></div></td><td className="px-4 py-3 text-sm text-slate-700">{item.category}</td><td className="px-4 py-3 text-sm font-semibold text-slate-800">{rupiah(item.price)}</td><td className="px-4 py-3">{item.badge ? <span className="whitespace-nowrap rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{item.badge}</span> : <span className="text-xs text-slate-500">-</span>}</td><td className="py-3 pl-4"><RowActions onEdit={() => onOpen('package', item)} onDelete={() => onDelete('packages', item.id)} /></td></tr>)}</tbody></table></div>
     </> : <EmptyState label="Belum ada paket. Tambahkan paket pertama." />}
   </>
 }
@@ -578,7 +599,7 @@ function SchedulesManager({ store, onOpen, onDelete }: { store: SalonStore; onOp
             <th className="px-4 py-3 font-semibold">Pelaksanaan</th>
             <th className="px-4 py-3 font-semibold">Paket</th>
             <th className="px-4 py-3 font-semibold">Status</th>
-            <th className="py-3 pl-4 text-right font-semibold">Aksi</th>
+            <th className="py-3 pl-4 text-center font-semibold">Aksi</th>
           </tr>
         </thead>
         <tbody>{ordered.map((item) => {
@@ -661,6 +682,19 @@ function ModalFrame({ children, onClose }: { children: ReactNode; onClose: () =>
     return () => window.removeEventListener('keydown', handleKey)
   }, [onClose])
   return <div onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }} className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 p-3 backdrop-blur-sm sm:p-4"><div role="dialog" aria-modal="true" className="my-auto max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/70 bg-white p-4 shadow-2xl sm:p-6">{children}</div></div>
+}
+
+function ConfirmationModal({ message, onCancel, onConfirm }: { message: string; onCancel: () => void; onConfirm: () => void }) {
+  return <ModalFrame onClose={onCancel}>
+    <div className="flex items-start gap-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600"><Trash2 size={18} /></span>
+      <div><h2 className="text-lg font-bold text-slate-900">Konfirmasi</h2><p className="mt-2 text-sm leading-6 text-slate-600">{message}</p></div>
+    </div>
+    <div className="mt-6 flex justify-end gap-2">
+      <button type="button" onClick={onCancel} className="btn-secondary">Batal</button>
+      <button type="button" onClick={onConfirm} className="btn-primary !bg-rose-600 hover:!bg-rose-700">Oke</button>
+    </div>
+  </ModalFrame>
 }
 
 function Toast({ message, onClose }: { message: string; onClose: () => void }) {
